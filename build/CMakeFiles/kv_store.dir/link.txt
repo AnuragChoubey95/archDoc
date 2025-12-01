@@ -1,0 +1,2 @@
+/usr/bin/ar qc libkv_store.a CMakeFiles/kv_store.dir/src/store/engine.cpp.o
+/usr/bin/ranlib libkv_store.a

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libkv_router.a CMakeFiles/kv_router.dir/src/router/service.cpp.o
+/usr/bin/ranlib libkv_router.a

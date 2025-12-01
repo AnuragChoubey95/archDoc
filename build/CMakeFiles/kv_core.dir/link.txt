@@ -1,0 +1,2 @@
+/usr/bin/ar qc libkv_core.a CMakeFiles/kv_core.dir/src/core.cpp.o
+/usr/bin/ranlib libkv_core.a

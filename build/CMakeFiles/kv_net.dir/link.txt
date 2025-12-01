@@ -1,0 +1,2 @@
+/usr/bin/ar qc libkv_net.a CMakeFiles/kv_net.dir/src/net/socket.cpp.o CMakeFiles/kv_net.dir/src/net/reactor.cpp.o
+/usr/bin/ranlib libkv_net.a

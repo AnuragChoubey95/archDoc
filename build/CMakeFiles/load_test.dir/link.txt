@@ -1,0 +1,1 @@
+/usr/bin/c++ -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib -lomp -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names -L/opt/homebrew/opt/libomp/lib CMakeFiles/load_test.dir/tests/load_test.cpp.o -o load_test  libkv_client.a libkv_net.a libkv_core.a

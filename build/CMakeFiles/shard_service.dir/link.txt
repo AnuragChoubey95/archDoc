@@ -1,1 +1,0 @@
-/usr/bin/c++ -Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include -L/opt/homebrew/opt/libomp/lib -lomp -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names -L/opt/homebrew/opt/libomp/lib CMakeFiles/shard_service.dir/src/bin/shard_main.cpp.o -o shard_service  libkv_shard.a libkv_net.a libkv_store.a libkv_core.a

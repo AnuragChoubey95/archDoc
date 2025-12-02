@@ -1,2 +1,0 @@
-/usr/bin/ar qc libkv_client.a CMakeFiles/kv_client.dir/src/client.cpp.o
-/usr/bin/ranlib libkv_client.a

@@ -81,9 +81,6 @@ namespace kv::client {
         Config config_;
         std::unique_ptr<net::Socket> sock_;
         uint64_t next_req_id_ = 1;
-
-        // Internal helpers
-        std::expected<core::MessageFrame, ClientError> send_and_receive(core::OpCode op, std::string_view key, std::string_view value = {});
         
         bool ensure_connection();
         void disconnect();

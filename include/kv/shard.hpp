@@ -20,6 +20,7 @@ namespace kv::shard {
     struct ConnectionContext {
         net::Socket socket;
         std::vector<core::Byte> buffer; // Accumulation buffer for TCP stream
+        std::vector<core::Byte> out_buffer;
 
         explicit ConnectionContext(net::Socket&& s) : socket(std::move(s)) {}
     };
@@ -73,6 +74,7 @@ namespace kv::shard {
         void process_frame(int client_fd, std::span<const core::Byte> body);
         void send_response(int client_fd, core::RequestId req_id, core::OpCode op, std::span<const core::Byte> value = {});
         void send_error(int client_fd, core::RequestId req_id, core::OpCode op);
+        void flush_output(int fd);
     };
 
 } // namespace kv::shard

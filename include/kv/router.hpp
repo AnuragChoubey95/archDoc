@@ -21,7 +21,8 @@ namespace kv::router {
      */
     struct ConnectionContext {
         net::Socket socket;
-        std::vector<core::Byte> buffer; // Input buffer
+        std::vector<core::Byte> buffer;      // Input buffer
+        std::vector<core::Byte> out_buffer;  // Output buffer for handling EAGAIN
 
         explicit ConnectionContext(net::Socket&& s) : socket(std::move(s)) {}
     };
@@ -63,7 +64,6 @@ namespace kv::router {
         net::Socket server_socket_;
 
         // Shard Management
-        // Index in vector = Shard ID
         struct ShardConnection {
             std::unique_ptr<ConnectionContext> conn;
             std::string ip;
@@ -73,16 +73,16 @@ namespace kv::router {
         std::vector<ShardConnection> shards_;
 
         // Client Management
-        // fd -> Context
         std::unordered_map<int, std::unique_ptr<ConnectionContext>> clients_;
 
         // Request Tracking
-        // RequestID -> Client FD
         struct InFlightReq {
             int client_fd;
+            core::RequestId original_req_id; // The ID sent by the client
             std::chrono::steady_clock::time_point timestamp;
         };
         std::unordered_map<core::RequestId, InFlightReq> in_flight_;
+        core::RequestId next_global_req_id_ = 1;
 
         // --- Event Handlers ---
 
@@ -94,8 +94,12 @@ namespace kv::router {
 
         void connect_to_shards();
         void process_client_frame(int client_fd, std::span<const core::Byte> frame_data);
-        void forward_to_shard(size_t shard_idx, std::span<const core::Byte> raw_frame, core::RequestId req_id, int client_fd);
+        
+        // Updated to take original_req_id for error reporting
+        void forward_to_shard(size_t shard_idx, std::span<const core::Byte> raw_frame, core::RequestId original_req_id, int client_fd);
+        
         void send_error_to_client(int client_fd, core::RequestId req_id, core::OpCode error_code);
+        void flush_output(ConnectionContext& ctx, int fd);
     };
 
 } // namespace kv::router

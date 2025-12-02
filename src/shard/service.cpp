@@ -198,22 +198,98 @@ namespace kv::shard {
         }
     }
 
+
     void ShardService::send_response(int client_fd, RequestId req_id, OpCode op, std::span<const Byte> value) {
-        if (clients_.find(client_fd) == clients_.end()) return;
+        auto it = clients_.find(client_fd);
+        if (it == clients_.end()) return;
+        auto& ctx = it->second;
 
         MessageFrame resp {
             .opcode = op,
             .req_id = req_id,
-            .key = {}, // Responses don't echo key
+            .key = {},
             .value = value
         };
 
         auto raw = encode_frame(resp);
-        clients_[client_fd]->socket.write(raw);
+
+        // If buffer is already non-empty, append and return (preserve order)
+        if (!ctx->out_buffer.empty()) {
+            ctx->out_buffer.insert(ctx->out_buffer.end(), raw.begin(), raw.end());
+            return; 
+        }
+
+        // Try to write directly
+        auto res = ctx->socket.write(raw);
+
+        if (!res) {
+            if (res.error() == EAGAIN || res.error() == EWOULDBLOCK) {
+                // Socket full, buffer EVERYTHING
+                ctx->out_buffer.insert(ctx->out_buffer.end(), raw.begin(), raw.end());
+                
+                // Register callback to know when we can write again
+                loop_.on_write(client_fd, [this](int fd) {
+                    this->flush_output(fd);
+                });
+            } else {
+                // Real error
+                clients_.erase(client_fd);
+                loop_.remove(client_fd);
+            }
+            return;
+        }
+
+        // Handle Partial Write
+        size_t written = res.value();
+        if (written < raw.size()) {
+            // Buffer the remainder
+            ctx->out_buffer.insert(ctx->out_buffer.end(), raw.begin() + written, raw.end());
+            
+            // Register callback
+            loop_.on_write(client_fd, [this](int fd) {
+                this->flush_output(fd);
+            });
+        }
     }
 
     void ShardService::send_error(int client_fd, RequestId req_id, OpCode op) {
         send_response(client_fd, req_id, op, {});
     }
+
+    // Add inside ShardService class (private) or as a helper in the .cpp file
+
+void ShardService::flush_output(int fd) {
+    auto it = clients_.find(fd);
+    if (it == clients_.end()) return;
+    auto& ctx = it->second;
+
+    if (ctx->out_buffer.empty()) return;
+
+    // Try to write the pending data
+    auto res = ctx->socket.write(ctx->out_buffer);
+    
+    if (!res) {
+        // If error is NOT EAGAIN/EWOULDBLOCK, it's a real error (disconnect)
+        if (res.error() != EWOULDBLOCK && res.error() != EAGAIN) {
+             std::cerr << "[Shard] Write error, closing " << fd << "\n";
+             clients_.erase(fd);
+             loop_.remove(fd);
+        }
+        // If EAGAIN, we just return and wait for next EPOLLOUT event
+        return;
+    }
+
+    size_t written = res.value();
+    
+    // Remove written bytes from buffer
+    if (written >= ctx->out_buffer.size()) {
+        ctx->out_buffer.clear();
+        // We are drained, no need to listen for WRITE events anymore
+        // (Optimisation: Only listen for READ to save CPU)
+        loop_.on_write(fd, nullptr); 
+    } else {
+        ctx->out_buffer.erase(ctx->out_buffer.begin(), ctx->out_buffer.begin() + written);
+    }
+}
 
 } // namespace kv::shard

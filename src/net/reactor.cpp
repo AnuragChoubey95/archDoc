@@ -49,15 +49,19 @@ namespace kv::net {
         }
     }
 
+    // src/net/reactor.cpp
+
     void EventLoop::on_read(int fd, IoHandler handler) {
         ensure_handlers_size(fd);
         handlers_[fd]->read_cb = std::move(handler);
         
 #ifdef __linux__
         struct epoll_event ev{};
-        ev.events = EPOLLIN;
-        if (handlers_[fd]->write_cb) ev.events |= EPOLLOUT;
         ev.data.fd = fd;
+        
+        // DYNAMIC LOGIC: Only ask for events if we have a handler
+        if (handlers_[fd]->read_cb) ev.events |= EPOLLIN;
+        if (handlers_[fd]->write_cb) ev.events |= EPOLLOUT;
         
         if (::epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &ev) < 0) {
             if (errno == EEXIST) {
@@ -65,9 +69,10 @@ namespace kv::net {
             }
         }
 #elif defined(__APPLE__)
+        // macOS kqueue handles enable/disable via EV_ENABLE/EV_DISABLE
         struct kevent ev;
-        // EV_ADD implicitly modifies if it already exists
-        EV_SET(&ev, fd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, nullptr);
+        uint16_t flags = (handlers_[fd]->read_cb) ? (EV_ADD | EV_ENABLE) : (EV_DELETE);
+        EV_SET(&ev, fd, EVFILT_READ, flags, 0, 0, nullptr);
         ::kevent(epoll_fd_, &ev, 1, nullptr, 0, nullptr);
 #endif
     }
@@ -78,9 +83,11 @@ namespace kv::net {
 
 #ifdef __linux__
         struct epoll_event ev{};
-        ev.events = EPOLLOUT;
-        if (handlers_[fd]->read_cb) ev.events |= EPOLLIN;
         ev.data.fd = fd;
+
+        // DYNAMIC LOGIC: Only ask for events if we have a handler
+        if (handlers_[fd]->read_cb) ev.events |= EPOLLIN;
+        if (handlers_[fd]->write_cb) ev.events |= EPOLLOUT;
 
         if (::epoll_ctl(epoll_fd_, EPOLL_CTL_ADD, fd, &ev) < 0) {
             if (errno == EEXIST) {
@@ -89,7 +96,8 @@ namespace kv::net {
         }
 #elif defined(__APPLE__)
         struct kevent ev;
-        EV_SET(&ev, fd, EVFILT_WRITE, EV_ADD | EV_ENABLE, 0, 0, nullptr);
+        uint16_t flags = (handlers_[fd]->write_cb) ? (EV_ADD | EV_ENABLE) : (EV_DELETE);
+        EV_SET(&ev, fd, EVFILT_WRITE, flags, 0, 0, nullptr);
         ::kevent(epoll_fd_, &ev, 1, nullptr, 0, nullptr);
 #endif
     }

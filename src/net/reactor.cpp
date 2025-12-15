@@ -13,7 +13,7 @@
 // Platform-specific includes
 #ifdef __linux__
     #include <sys/epoll.h>
-#elif defined(__APPLE__) || defined(__FreeBSD__)
+#elif defined(__APPLE__)
     #include <sys/types.h>
     #include <sys/event.h>
     #include <sys/time.h>
@@ -49,12 +49,9 @@ namespace kv::net {
         }
     }
 
-    // src/net/reactor.cpp
-
     void EventLoop::on_read(int fd, IoHandler handler) {
         ensure_handlers_size(fd);
         handlers_[fd]->read_cb = std::move(handler);
-        
 #ifdef __linux__
         struct epoll_event ev{};
         ev.data.fd = fd;
@@ -113,7 +110,6 @@ namespace kv::net {
         // Best effort removal, ignore errors (e.g. if only read was registered)
         ::kevent(epoll_fd_, ev, n, nullptr, 0, nullptr);
 #endif
-
         if (fd < static_cast<int>(handlers_.size())) {
             handlers_[fd].reset();
         }
@@ -126,7 +122,6 @@ namespace kv::net {
             .deadline = now + delay,
             .callback = std::move(handler)
         };
-        
         timers_.push_back(std::move(t));
         std::push_heap(timers_.begin(), timers_.end(), std::greater<>{});
         
@@ -140,7 +135,6 @@ namespace kv::net {
             if (timers_.front().deadline > now) {
                 break;
             }
-
             std::pop_heap(timers_.begin(), timers_.end(), std::greater<>{});
             Timer expired = std::move(timers_.back());
             timers_.pop_back();
@@ -208,20 +202,17 @@ namespace kv::net {
                 // Handle EV_EOF (disconnect) as a read event so read() returns 0/error
                 if (events[i].flags & EV_EOF) is_read = true;
 #endif
-
                 if (fd >= static_cast<int>(handlers_.size()) || !handlers_[fd]) continue;
 
                 if (is_read && handlers_[fd]->read_cb) {
                     handlers_[fd]->read_cb(fd);
                 }
 
-                if (fd < static_cast<int>(handlers_.size()) && handlers_[fd]) {
-                    if (is_write && handlers_[fd]->write_cb) {
-                        handlers_[fd]->write_cb(fd);
-                    }
+                if (is_write && handlers_[fd]->write_cb) {
+                    handlers_[fd]->write_cb(fd);
                 }
+                
             }
-
             process_timers();
         }
     }

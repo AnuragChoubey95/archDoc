@@ -40,7 +40,6 @@ namespace kv::client {
         
         // Note: For the Client, we keep the socket BLOCKING for simplicity of the sync API.
         // If we reused the net::Socket set_non_blocking(), we'd need a select() loop here.
-        // We assume net::Socket doesn't force non-blocking in constructor (it doesn't).
 
         // Connect
         // Since net::Socket::connect assumes non-blocking logic in our implementation,
@@ -87,7 +86,6 @@ namespace kv::client {
         if (!sock_->write(raw)) { disconnect(); return std::unexpected(ClientError::NetworkError); }
 
         // Read Response
-        // (Duplicated logic from above for safety/simplicity)
         Byte len_buf[2];
         if (sock_->read(len_buf).value_or(0) != 2) { disconnect(); return std::unexpected(ClientError::NetworkError); }
         
@@ -132,7 +130,7 @@ namespace kv::client {
         auto raw = encode_frame(req);
         if (!sock_->write(raw)) { disconnect(); return std::unexpected(ClientError::NetworkError); }
 
-        // Read Response (Simplified for brevity, assume similar loop as GET)
+        // Read Response
         Byte len_buf[2];
         if (sock_->read(len_buf).value_or(0) != 2) { disconnect(); return std::unexpected(ClientError::NetworkError); }
         auto len = decode_length_prefix(len_buf);

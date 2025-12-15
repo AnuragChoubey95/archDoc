@@ -46,7 +46,7 @@ void signal_handler(int signum) {
 // ---------------------------------------------------------------------------
 
 void pin_to_core(int core_id) {
-    // ... Implementation (Linux or macOS) ...
+    // ... Implementation (Linux & macOS) ...
     #ifdef __linux__
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);

@@ -18,7 +18,6 @@ uint16_t ROUTER_PORT = 9090;
 // Statistics
 std::atomic<long> g_success{0};
 std::atomic<long> g_fail{0};
-std::atomic<long> g_bytes_transferred{0};
 std::atomic<int> g_connected_clients{0};
 std::mutex print_mutex;
 
@@ -98,7 +97,7 @@ int main(int argc, char** argv) {
 
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    std::vector<std::jthread> clients;
+    std::vector<std::thread> clients;
     clients.reserve(NUM_CLIENTS);
 
     for (int i = 0; i < NUM_CLIENTS; ++i) {

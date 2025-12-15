@@ -16,7 +16,7 @@
 namespace kv::net {
 
     using namespace kv::core;
-
+    
     /**
      * @brief RAII Wrapper for a File Descriptor (Socket).
      *
@@ -144,7 +144,7 @@ namespace kv::net {
         EventLoop();
         ~EventLoop();
 
-        // Non-copyable, Non-movable (simplifies pointer management in callbacks)
+        // Non-copyable (simplifies pointer management in callbacks)
         EventLoop(const EventLoop&) = delete;
         EventLoop& operator=(const EventLoop&) = delete;
 

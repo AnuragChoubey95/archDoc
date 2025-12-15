@@ -185,7 +185,7 @@ namespace kv::shard {
                 // We reuse GET logic but discard value
                 auto res = store_.get(frame.key);
                 if (res.has_value()) {
-                    send_response(client_fd, frame.req_id, OpCode::OkPut);
+                    send_response(client_fd, frame.req_id, OpCode::OkGet);
                 } else {
                     send_error(client_fd, frame.req_id, OpCode::NotFound);
                 }
@@ -256,40 +256,38 @@ namespace kv::shard {
         send_response(client_fd, req_id, op, {});
     }
 
-    // Add inside ShardService class (private) or as a helper in the .cpp file
+    void ShardService::flush_output(int fd) {
+        auto it = clients_.find(fd);
+        if (it == clients_.end()) return;
+        auto& ctx = it->second;
 
-void ShardService::flush_output(int fd) {
-    auto it = clients_.find(fd);
-    if (it == clients_.end()) return;
-    auto& ctx = it->second;
+        if (ctx->out_buffer.empty()) return;
 
-    if (ctx->out_buffer.empty()) return;
-
-    // Try to write the pending data
-    auto res = ctx->socket.write(ctx->out_buffer);
-    
-    if (!res) {
-        // If error is NOT EAGAIN/EWOULDBLOCK, it's a real error (disconnect)
-        if (res.error() != EWOULDBLOCK && res.error() != EAGAIN) {
-             std::cerr << "[Shard] Write error, closing " << fd << "\n";
-             clients_.erase(fd);
-             loop_.remove(fd);
+        // Try to write the pending data
+        auto res = ctx->socket.write(ctx->out_buffer);
+        
+        if (!res) {
+            // If error is NOT EAGAIN/EWOULDBLOCK, it's a real error (disconnect)
+            if (res.error() != EWOULDBLOCK && res.error() != EAGAIN) {
+                std::cerr << "[Shard] Write error, closing " << fd << "\n";
+                clients_.erase(fd);
+                loop_.remove(fd);
+            }
+            // If EAGAIN, we just return and wait for next EPOLLOUT event
+            return;
         }
-        // If EAGAIN, we just return and wait for next EPOLLOUT event
-        return;
-    }
 
-    size_t written = res.value();
-    
-    // Remove written bytes from buffer
-    if (written >= ctx->out_buffer.size()) {
-        ctx->out_buffer.clear();
-        // We are drained, no need to listen for WRITE events anymore
-        // (Optimisation: Only listen for READ to save CPU)
-        loop_.on_write(fd, nullptr); 
-    } else {
-        ctx->out_buffer.erase(ctx->out_buffer.begin(), ctx->out_buffer.begin() + written);
+        size_t written = res.value();
+        
+        // Remove written bytes from buffer
+        if (written >= ctx->out_buffer.size()) {
+            ctx->out_buffer.clear();
+            // We are drained, no need to listen for WRITE events anymore
+            // (Optimisation: Only listen for READ to save CPU)
+            loop_.on_write(fd, nullptr); 
+        } else {
+            ctx->out_buffer.erase(ctx->out_buffer.begin(), ctx->out_buffer.begin() + written);
+        }
     }
-}
 
 } // namespace kv::shard

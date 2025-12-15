@@ -45,7 +45,7 @@ namespace kv::router {
         std::cout << "[Router] Listening on port " << config_.port << "\n" << std::flush;
 
         loop_.on_read(server_socket_.native_handle(), [this](int fd) {
-            this->on_accept(fd);
+            this->on_accept(fd); 
         });
 
         connect_to_shards();
@@ -69,7 +69,7 @@ namespace kv::router {
             shard.conn = std::make_unique<ConnectionContext>(std::move(sock));
             shard.active = true;
 
-            loop_.on_read(fd, [this, i, fd](int) {
+            loop_.on_read(fd, [this, i, fd](int) {   
                 this->on_shard_data(fd, i);
             });
 
@@ -141,7 +141,6 @@ namespace kv::router {
             }
             return;
         }
-
         size_t written = res.value();
         if (written >= ctx.out_buffer.size()) {
             ctx.out_buffer.clear();
@@ -196,7 +195,7 @@ namespace kv::router {
         in_flight_[global_id] = { client_fd, frame.req_id, std::chrono::steady_clock::now() };
 
         // 3. Patch Frame with Global ID
-        MessageFrame fwd_frame = frame;
+        MessageFrame fwd_frame = frame; 
         fwd_frame.req_id = global_id;
 
         auto raw_fwd = encode_frame(fwd_frame);
@@ -310,9 +309,7 @@ namespace kv::router {
                             }
                         }
                     }
-                }
-                
-                // 4. Cleanup
+                }                
                 in_flight_.erase(it);
             }
         });

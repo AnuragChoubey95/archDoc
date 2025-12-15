@@ -118,7 +118,6 @@ namespace kv::store {
     }
 
     std::optional<core::ProtocolError> Map::put(core::KeyView key, core::ValueView value) {
-        std::lock_guard<std::mutex> lock(mutex_);
 
         // 1. Validation
         if (key.size() > MAX_KEY_SIZE || value.size() > MAX_VALUE_SIZE) {
@@ -178,8 +177,7 @@ namespace kv::store {
     }
 
     std::optional<core::ProtocolError> Map::del(core::KeyView key) {
-        std::lock_guard<std::mutex> lock(mutex_);
-
+        
         size_t idx = bucket_index(key);
         Node* curr = buckets_[idx];
         Node* prev = nullptr;
@@ -208,6 +206,7 @@ namespace kv::store {
     }
 
     void Map::rehash_if_needed() {
+        
         float load = static_cast<float>(count_) / buckets_.size();
         if (load <= 0.8f) return;
 
